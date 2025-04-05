@@ -11,8 +11,7 @@ async function apiEndpointExample() {
   // Create a metering service with the immediate strategy
   const meteringService = MeteringServiceFactory.createService({
     stripeApiKey,
-    strategyType: 'immediate',
-    meterEventName: 'api_call'
+    strategyType: 'immediate'
   });
   
   // Customer ID from your application

@@ -39,7 +39,10 @@ jobs:
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
         directory: ./coverage/
         flags: unittests
         fail_ci_if_error: false
+      # Only run this step if the CODECOV_TOKEN secret is available
+      if: github.repository == 'copyleftdev/api-metering-libary' && github.event_name != 'pull_request'
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

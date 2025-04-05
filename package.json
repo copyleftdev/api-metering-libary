@@ -18,7 +18,7 @@
     "billing",
     "usage-based"
   ],
-  "author": "",
+  "author": "Don Johnson <dj@codetestcde.io> (https://github.com/copyleftdev)",
   "license": "MIT",
   "files": [
     "dist"
