@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Use Node.js 20
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Test
+        run: npm test
+      
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          echo "Generating release notes..."
+          VERSION=${GITHUB_REF#refs/tags/v}
+          
+          # Extract changes since the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            # If this is the first tag, use all commits
+            CHANGES=$(git log --pretty=format:"* %s (%h)" $GITHUB_SHA)
+          else
+            CHANGES=$(git log --pretty=format:"* %s (%h)" $PREV_TAG..$GITHUB_SHA)
+          fi
+          
+          {
+            echo "## Changes in v$VERSION"
+            echo ""
+            echo "$CHANGES"
+            echo ""
+            echo "## Installation"
+            echo "```bash"
+            echo "npm install api-metering-library"
+            echo "```"
+          } > RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

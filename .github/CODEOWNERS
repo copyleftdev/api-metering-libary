@@ -1,0 +1,13 @@
+# These owners will be the default owners for everything in
+# the repo. Unless a later match takes precedence,
+# @copyleftdev will be requested for review when someone 
+# opens a pull request.
+*       @copyleftdev
+
+# Specific ownership for critical components
+/src/core/               @copyleftdev
+/src/stripe/             @copyleftdev
+/src/interfaces/         @copyleftdev
+
+# CI/CD specific files
+/.github/workflows/      @copyleftdev
