@@ -4,7 +4,7 @@
 import { MeteringServiceFactory } from '../factories/metering-service-factory';
 
 // Example function to demonstrate integration in an API handler
-async function apiEndpointExample() {
+async function apiEndpointExample(): Promise<{ success: boolean; error?: unknown }> {
   // Replace with your actual Stripe API key
   const stripeApiKey = 'sk_test_your_stripe_api_key';
   
@@ -20,6 +20,7 @@ async function apiEndpointExample() {
   try {
     // Record an API call with default usage (1)
     await meteringService.recordApiCall(customerId);
+    // eslint-disable-next-line no-console
     console.log('Successfully recorded API usage for customer:', customerId);
     
     // Record an API call with custom usage and endpoint context
@@ -28,17 +29,19 @@ async function apiEndpointExample() {
       5, // Record 5 units of usage
       '/api/data/query' // The endpoint being called
     );
+    // eslint-disable-next-line no-console
     console.log('Successfully recorded 5 units of API usage for customer:', customerId);
     
     return { success: true };
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to record API usage:', error);
     return { success: false, error };
   }
 }
 
 // Example function demonstrating a batched usage scenario
-async function batchedUsageExample() {
+async function batchedUsageExample(): Promise<{ success: boolean; error?: unknown }> {
   // Replace with your actual Stripe API key
   const stripeApiKey = 'sk_test_your_stripe_api_key';
   
@@ -56,14 +59,17 @@ async function batchedUsageExample() {
     await meteringService.recordApiCall('cus_customer2', 3);
     await meteringService.recordApiCall('cus_customer1', 2, '/api/data/search');
     
+    // eslint-disable-next-line no-console
     console.log('Successfully queued API usage for multiple customers');
     
     // When shutting down your application, dispose the service to ensure all pending usage is reported
     await meteringService.dispose();
+    // eslint-disable-next-line no-console
     console.log('Successfully disposed metering service');
     
     return { success: true };
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Failed to record or flush API usage:', error);
     return { success: false, error };
   }

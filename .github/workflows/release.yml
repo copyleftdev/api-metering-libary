@@ -63,8 +63,8 @@ jobs:
           draft: false
           prerelease: false
           
-      - name: Publish to NPM
+      - name: Publish package to NPM
         run: npm publish
+        if: github.repository == 'copyleftdev/api-metering-libary' && startsWith(github.ref, 'refs/tags/')
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: github.repository == 'copyleftdev/api-metering-libary'

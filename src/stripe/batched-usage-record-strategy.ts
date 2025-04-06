@@ -41,7 +41,6 @@ export class BatchedUsageRecordStrategy implements MeteringStrategy {
 
     // Initialize Stripe client
     this.stripe = new Stripe(config.stripeApiKey, {
-      // @ts-ignore - TypeScript types may be out of date, but this is valid for the Stripe API
       apiVersion: '2023-10-16', // Using a fixed API version for stability
     });
 
@@ -177,7 +176,6 @@ export class BatchedUsageRecordStrategy implements MeteringStrategy {
       const totalUsage = usageRecords.reduce((sum, record) => sum + record.usageValue, 0);
       
       // Send the aggregated usage record to Stripe
-      // @ts-ignore - Using lower-level Stripe API methods that may not be fully typed
       await this.stripe.subscriptionItems.createUsageRecord(
         subscriptionItemId,
         {
@@ -189,13 +187,18 @@ export class BatchedUsageRecordStrategy implements MeteringStrategy {
 
       // Clear the batch after successful submission
       usageRecords.length = 0;
-    } catch (error) {
+    } catch (error: unknown) {
       // Enhance error with more context
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const stripeError = error as { code?: string; statusCode?: number };
+      const errorDetails = stripeError.code && stripeError.statusCode 
+        ? { code: stripeError.code, statusCode: stripeError.statusCode } 
+        : null;
+      
       throw new StripeApiError(
-        `Failed to flush usage records for subscription item ${subscriptionItemId}: ${(error as Error).message}`,
-        // @ts-ignore - Handle potential Stripe error object
-        error.code && error.statusCode ? { code: error.code, statusCode: error.statusCode } : null,
-        error as Error
+        `Failed to flush usage records for subscription item ${subscriptionItemId}: ${errorMessage}`,
+        errorDetails,
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }

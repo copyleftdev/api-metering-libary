@@ -25,7 +25,6 @@ export class ImmediateMeterEventStrategy implements MeteringStrategy {
 
     // Initialize Stripe client
     this.stripe = new Stripe(config.stripeApiKey, {
-      // @ts-ignore - TypeScript types may be out of date, but this is valid for the Stripe API
       apiVersion: '2023-10-16', // Using a fixed API version for stability
     });
 
@@ -62,7 +61,9 @@ export class ImmediateMeterEventStrategy implements MeteringStrategy {
       // In a real implementation, you would call Stripe's meter events API
       // Since the meter events API might not be accessible in the test environment,
       // we're providing a mock implementation that demonstrates the concept
-      // @ts-ignore - Using lower-level Stripe API methods that may not be fully typed
+      // NOTE: This is accessing a Stripe API feature that might not be in the types
+      // In a real implementation, this would be properly typed with the actual Stripe SDK
+      // @ts-expect-error - billingPortal.meterEvents is part of a newer Stripe API
       await this.stripe.billingPortal.meterEvents.create({
         customer: customerId,
         value: usageValue,
@@ -73,13 +74,18 @@ export class ImmediateMeterEventStrategy implements MeteringStrategy {
           api_endpoint: apiEndpoint || 'not_specified'
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Enhance error with more context
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const stripeError = error as { code?: string; statusCode?: number };
+      const errorDetails = stripeError.code && stripeError.statusCode 
+        ? { code: stripeError.code, statusCode: stripeError.statusCode } 
+        : null;
+      
       throw new StripeApiError(
-        `Failed to record meter event for customer ${customerId}: ${(error as Error).message}`,
-        // @ts-ignore - Handle potential Stripe error object
-        error.code && error.statusCode ? { code: error.code, statusCode: error.statusCode } : null,
-        error as Error
+        `Failed to record meter event for customer ${customerId}: ${errorMessage}`,
+        errorDetails,
+        error instanceof Error ? error : new Error(String(error))
       );
     }
   }
