@@ -18,6 +18,14 @@ jest.mock('stripe', () => {
   }));
 });
 
+// Helper class for testing
+class TestImmediateStrategy extends ImmediateMeterEventStrategy {
+  // Helper to check if disposed
+  isDisposed(): boolean {
+    return (this as any).disposed;
+  }
+}
+
 describe('ImmediateMeterEventStrategy', () => {
   const mockConfig = {
     stripeApiKey: 'sk_test_mockkey',
@@ -25,7 +33,7 @@ describe('ImmediateMeterEventStrategy', () => {
     idempotencyKeyPrefix: 'test_prefix'
   };
   
-  let strategy: ImmediateMeterEventStrategy;
+  let strategy: TestImmediateStrategy;
   let stripeMock: any;
   
   beforeEach(() => {
@@ -34,7 +42,7 @@ describe('ImmediateMeterEventStrategy', () => {
     
     // Create a fresh instance of the mock
     stripeMock = require('stripe');
-    strategy = new ImmediateMeterEventStrategy(mockConfig);
+    strategy = new TestImmediateStrategy(mockConfig);
   });
   
   describe('constructor', () => {
@@ -47,7 +55,7 @@ describe('ImmediateMeterEventStrategy', () => {
     });
     
     it('should use default idempotency key prefix if not provided', () => {
-      const defaultStrategy = new ImmediateMeterEventStrategy({
+      const defaultStrategy = new TestImmediateStrategy({
         stripeApiKey: 'sk_test_mockkey',
         strategyType: 'immediate'
       });
@@ -57,7 +65,7 @@ describe('ImmediateMeterEventStrategy', () => {
     });
     
     it('should throw an error if Stripe API key is not provided', () => {
-      expect(() => new ImmediateMeterEventStrategy({
+      expect(() => new TestImmediateStrategy({
         stripeApiKey: '',
         strategyType: 'immediate'
       })).toThrow('Stripe API key is required');
@@ -78,6 +86,13 @@ describe('ImmediateMeterEventStrategy', () => {
       
       await expect(strategy.recordUsage('cus_123', -1)).rejects.toThrow(
         new InvalidInputError('Usage value must be greater than zero')
+      );
+    });
+    
+    it('should throw an error if the strategy is disposed', async () => {
+      await strategy.dispose();
+      await expect(strategy.recordUsage('cus_123', 1)).rejects.toThrow(
+        'Strategy has been disposed and cannot record usage'
       );
     });
     
@@ -115,6 +130,51 @@ describe('ImmediateMeterEventStrategy', () => {
       await expect(strategy.recordUsage('cus_error', 1)).rejects.toThrow(
         /Failed to record meter event for customer cus_error/
       );
+    });
+    
+    it('should properly handle Stripe API errors with code and statusCode', async () => {
+      // Mock the Stripe error with code and statusCode
+      const stripeError = new Error('Resource not found');
+      (stripeError as any).code = 'resource_missing';
+      (stripeError as any).statusCode = 404;
+      
+      // Override the mock implementation for this test
+      const createMeterMock = stripeMock.mock.results[0].value.billingPortal.meterEvents.create;
+      const originalMock = createMeterMock.mockImplementation;
+      
+      createMeterMock.mockImplementation(() => {
+        throw stripeError;
+      });
+      
+      // Test that the error is properly enhanced with code and statusCode
+      try {
+        await strategy.recordUsage('cus_123', 1);
+        fail('Should have thrown an error');
+      } catch (error) {
+        expect(error).toBeInstanceOf(StripeApiError);
+        expect((error as StripeApiError).stripeCode).toBe('resource_missing');
+        expect((error as StripeApiError).statusCode).toBe(404);
+      }
+      
+      // Restore the original mock
+      createMeterMock.mockImplementation(originalMock);
+    });
+  });
+  
+  describe('dispose', () => {
+    it('should mark the strategy as disposed', async () => {
+      expect(strategy.isDisposed()).toBe(false);
+      await strategy.dispose();
+      expect(strategy.isDisposed()).toBe(true);
+    });
+    
+    it('should be idempotent (can be called multiple times)', async () => {
+      await strategy.dispose();
+      expect(strategy.isDisposed()).toBe(true);
+      
+      // Call dispose again
+      await strategy.dispose();
+      expect(strategy.isDisposed()).toBe(true);
     });
   });
 });

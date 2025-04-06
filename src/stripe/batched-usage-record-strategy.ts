@@ -55,6 +55,11 @@ export class BatchedUsageRecordStrategy implements MeteringStrategy {
         console.error('Error flushing batched usage:', error);
       });
     }, this.batchIntervalMs);
+    
+    // Unref the timer to prevent it from keeping the process alive
+    if (this.flushInterval.unref) {
+      this.flushInterval.unref();
+    }
   }
 
   /**
@@ -155,7 +160,11 @@ export class BatchedUsageRecordStrategy implements MeteringStrategy {
     
     // Process each subscription item's batch
     for (const subscriptionItemId of subscriptionItemIds) {
-      await this.flushBatch(subscriptionItemId);
+      try {
+        await this.flushBatch(subscriptionItemId);
+      } catch (error) {
+        console.error(`Error flushing batch for ${subscriptionItemId}:`, error);
+      }
     }
   }
 
