@@ -2,6 +2,74 @@
 
 A TypeScript library for metering API calls with Stripe's usage-based billing capabilities. This library provides a reusable, framework-agnostic solution for tracking API usage and reporting it to Stripe for billing purposes.
 
+## Architecture
+
+```mermaid
+classDiagram
+    %% Interfaces
+    class IMeteringStrategy {
+        <<interface>>
+        +recordUsage(customerId: string, usageValue: number, context?: any) Promise~void~
+        +dispose() Promise~void~
+    }
+
+    %% Main Classes
+    class MeteringService {
+        -strategy: IMeteringStrategy
+        +recordApiCall(customerId: string, usageValue?: number, apiEndpoint?: string) Promise~void~
+        +dispose() Promise~void~
+    }
+
+    class MeteringServiceFactory {
+        <<static>>
+        +createService(config: MeteringServiceConfig) MeteringService
+    }
+
+    %% Strategies
+    class BatchedUsageRecordStrategy {
+        -stripeClient: Stripe
+        -batches: Map~string, UsageRecord[]~
+        -intervalId: NodeJS.Timeout
+        +recordUsage(customerId: string, usageValue: number) Promise~void~
+        +dispose() Promise~void~
+        -flushAllBatches() Promise~void~
+        -flushBatch(batch: UsageRecord[]) Promise~void~
+    }
+
+    class ImmediateMeterEventStrategy {
+        -stripeClient: Stripe
+        -meterEventName: string
+        -idempotencyKeyPrefix: string
+        +recordUsage(customerId: string, usageValue: number, context?: any) Promise~void~
+        +dispose() Promise~void~
+    }
+
+    %% Error Classes
+    class MeteringError {
+        +name: string
+        +message: string
+    }
+
+    class ConfigurationError {
+        +name: string
+        +message: string
+    }
+
+    class StripeApiError {
+        +name: string
+        +message: string
+        +stripeCode: string
+    }
+
+    %% Relationships
+    MeteringService --> IMeteringStrategy : uses
+    MeteringServiceFactory ..> MeteringService : creates
+    BatchedUsageRecordStrategy ..|> IMeteringStrategy : implements
+    ImmediateMeterEventStrategy ..|> IMeteringStrategy : implements
+    MeteringError <|-- ConfigurationError : extends
+    MeteringError <|-- StripeApiError : extends
+```
+
 ## Features
 
 - Framework-agnostic: Works with any JavaScript/TypeScript backend
